@@ -1,0 +1,6 @@
+dist/
+build/
+xmlparser.egg-info/
+test_data/*
+__pycache__/
+test.py
