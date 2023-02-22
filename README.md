@@ -1,4 +1,4 @@
-XmlParser (Custom XmlParser)
+Custom XML to Dict Parser
 ==============================
 ## Table of Contents
 
