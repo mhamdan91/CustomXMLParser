@@ -2,6 +2,6 @@
 echo *************CLEAN DIRECTORY*************
 rmdir /s /q build
 rmdir /s /q dist
-rmdir /s /q moevat.egg-info
+rmdir /s /q CustomXMLParser.egg-info
 echo *************BUILD WHEEL*************
 python setup.py sdist bdist_wheel

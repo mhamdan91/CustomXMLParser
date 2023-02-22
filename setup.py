@@ -10,17 +10,17 @@ DESCRIPTION = 'Python Libary that allows for customized parsing of XML files usi
               'Output is a dictonary. This library builds on the xml2dict library.'
 LONG_DESCRIPTION = open('README.md').read()
 setup(
-    name="xmlmapper",
+    name="CustomXMLParser",
     version=VERSION,
     author="mhamdan91 (Hamdan, Muhammad)",
     author_email="<mhamdan.dev@gmail.com>",
-    url='https://github.com/mhamdan91/xmlmapper',
+    url='https://github.com/mhamdan91/CustomXMLParser',
     description=DESCRIPTION,
     long_description_content_type="text/markdown",
     long_description=LONG_DESCRIPTION,
     packages=find_packages(),
     install_requires=[str(ir.requirement) for ir in REQUIREMENTS],
-    keywords=['python', 'xml', 'parsing', 'mapping', 'dictionary', 'configurable', 'custom', 'formatting'],
+    keywords=['python', 'xml', 'XML', 'parsing', 'mapping', 'dictionary', 'configurable', 'custom', 'formatting'],
     classifiers=[
         "Development Status :: 5 - Production/Stable",
         "Intended Audience :: Developers",
@@ -28,6 +28,6 @@ setup(
         "Operating System :: Unix",
         "Operating System :: MacOS :: MacOS X",
         "Operating System :: Microsoft :: Windows",
-        "License :: OSI Approved :: MIT License",
+        "License :: OSI Approved :: BSD License",
     ]
 )
