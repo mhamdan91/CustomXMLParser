@@ -1,7 +1,6 @@
-import README
 import xmltodict
 import time, json, typing, logging
-LONG_DESCRIPTION = README.LONG_DESCRIPTION
+from .README import LONG_DESCRIPTION
 logger = logging.getLogger(__name__)
 
 class XmlParser:
