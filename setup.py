@@ -2,7 +2,7 @@ import os
 from setuptools import setup, find_packages
 from pip._internal.network.session import PipSession
 from pip._internal.req.req_file import parse_requirements
-from xmlparser.version import __version__
+from CustomXMLParser.version import __version__
 VERSION = __version__
 PROJECT_DIR = os.path.dirname(os.path.realpath(__file__))
 REQUIREMENTS = parse_requirements(os.path.join(PROJECT_DIR, 'requirements.txt'), session=PipSession())
@@ -10,17 +10,17 @@ DESCRIPTION = 'Python Libary that allows for customized parsing of XML files usi
               'Output is a dictonary. This library builds on the xml2dict library.'
 LONG_DESCRIPTION = open('README.md').read()
 setup(
-    name="xmlparser",
+    name="xmlmapper",
     version=VERSION,
     author="mhamdan91 (Hamdan, Muhammad)",
     author_email="<mhamdan.dev@gmail.com>",
-    url='https://github.com/mhamdan91/xmlparser',
+    url='https://github.com/mhamdan91/xmlmapper',
     description=DESCRIPTION,
     long_description_content_type="text/markdown",
     long_description=LONG_DESCRIPTION,
     packages=find_packages(),
     install_requires=[str(ir.requirement) for ir in REQUIREMENTS],
-    keywords=['python', 'xml', 'parsing', 'dictionary', 'configurable', 'custom', 'formatting'],
+    keywords=['python', 'xml', 'parsing', 'mapping', 'dictionary', 'configurable', 'custom', 'formatting'],
     classifiers=[
         "Development Status :: 5 - Production/Stable",
         "Intended Audience :: Developers",
