@@ -1,7 +1,19 @@
 import xmltodict
 import time, json, typing, logging
+from moecolor import print
 from .README import LONG_DESCRIPTION
-logger = logging.getLogger(__name__)
+
+class ParserError(Exception):
+    def __init__(self, error):
+        self.error = error
+
+    def __str__(self):
+        return self.error
+
+class MissingItems(ParserError):
+    """
+    Raised when the item or more are element are missing
+    """
 
 class XmlParser:
     """
@@ -81,11 +93,16 @@ class XmlParser:
         element_name = in_d.get(self.name_key, '')
         if self.data_key in in_d: # This means we're at the bottom...
             out_d[element_name] = {}
-            rows = [row.split(',') for row in in_d.get(self.data_key).split('\n')]
-            rows = list(zip(*rows))
-            raw_header = in_d.get(self.header_key).get(self.table_key)
-            for i, _dict in enumerate(raw_header):
-                out_d[element_name][_dict.get(self.header_text_key)] = rows[i]
+             # only if primary keys exist...
+            if in_d.get(self.data_key) and in_d.get(self.header_key) and in_d.get(self.header_key, {}).get(self.table_key):
+                rows = [row.split(',') for row in in_d.get(self.data_key).split('\n')]
+                rows = list(zip(*rows))
+                raw_header = in_d.get(self.header_key, {}).get(self.table_key)
+                missing_element = self.data_key if len(rows) < len(raw_header) else self.header_key
+                if len(rows) != len(raw_header):
+                    raise MissingItems(f"Header and rows for [{element_name}] do not match. [{missing_element}] is incomplete.")
+                for i, _dict in enumerate(raw_header):
+                    out_d[element_name][_dict.get(self.header_text_key)] = rows[i]
         else:
             for key, value in in_d.items():  # recurse the dict...
                 if isinstance(value, dict):
@@ -151,7 +168,7 @@ class XmlParser:
                         keys = path.split(',')
                         formatted_key, root_key, tmp_payLoad = format_key(keys, True, payload)
                         if not formatted_key and not root_key:
-                            logger.warning(f"Key [{key}] resource {value} is not available.")
+                            print(f"Key [{key}] resource {value} is not available.", 'orange')
                             continue # this means resource is not avaiable
                         if tmp_payLoad.get(root_key):
                             try:
@@ -165,7 +182,7 @@ class XmlParser:
                                 try:
                                     out_d[key][k].update(eval(f'v["{root_key}"]{formatted_key}'))
                                 except KeyError:
-                                    logger.warning(f"Resource {formatted_key} is not available.")
+                                    print(f"Resource {formatted_key} is not available.", 'orange')
                                     pass # it means resource is not available...
                                 if _children:
                                     for child in _children:
@@ -186,19 +203,19 @@ class XmlParser:
         st = time.perf_counter()
         if self.parser_type == 'raw':
             parsed_content = self._load_file(file)
-            logger.info(f'Raw xml2dict parsing.')
+            print(f'Raw xml2dict parsing.', 'green')
         else:
             unformatted_dict = self._xml_to_dict(self._load_file(file))
             if not self.config_file:
                 parsed_content =  unformatted_dict
-                logger.info(f'Unformatted custom parsing.')
+                print(f'Unformatted custom parsing.', 'green')
             else:
                 if not self._config:
                     self._config = self._load_file(self.config_file, 'utf-8', 'json')
                 parsed_content = self._format_dict(unformatted_dict[next(iter(unformatted_dict))])
-                logger.info(f'Formatted custom parsing.')
-            [logger.warning(f'"{key}" table is empty.') for key, value in parsed_content.items() if not value]
-        logger.info(f'Parsing time: {time.perf_counter() - st:0.2f}s')
+                print(f'Formatted custom parsing.', 'green')
+            [print(f'"{key}" table is empty.', 'orange') for key, value in parsed_content.items() if not value]
+        print(f'Parsing time: {time.perf_counter() - st:0.2f}s', 'green', attr=['b'])
         return parsed_content
 
 XmlParser.__doc__ = LONG_DESCRIPTION
