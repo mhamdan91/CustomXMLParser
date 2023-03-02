@@ -18,10 +18,10 @@ To install the library simply run the following command in a cmd, shell or whate
 # It's recommended to create a virtual environment
 
 # Windows
-pip install xmlparser
+pip install CustomXMLParser
 
 # Linux
-pip3 install xmlparser
+pip3 install CustomXMLParser
 ```
 
 ## Library usage?
@@ -29,7 +29,7 @@ pip3 install xmlparser
 ### Example usage
 If you wish to read the XML file as is and simply convert it to a python dictionary, then do the following:
 ```python
-from xmlparser import XmlParser
+from CustomXMLParser import XmlParser
 
 xml_parser = XmlParser(parser_type='raw')
 xml_file = 'path_to_xml_file'
@@ -38,7 +38,7 @@ xml_dict = xml_parser.parse(xml_file)
 
 If you wish to read specific portions of the XML file and format them in a particular way, then do the following:
 ```python
-from xmlparser import XmlParser
+from CustomXMLParser import XmlParser
 
 config_file = 'path_to_config_file'
 xml_parser = XmlParser(config_file=config_file, parser_type='custom')
@@ -61,7 +61,7 @@ header_text_key (str, optional): this is a custom/xml configuration parameter, a
 You can override those attributes by passing them to the constructor of the `XmlParser` class as follows:
 
 ```python
-from xmlparser import XmlParser
+from CustomXMLParser import XmlParser
 
 config_file = 'path_to_config_file'
 xml_parser = XmlParser(config_file=config_file, parser_type='custom', encoding='utf-8',
