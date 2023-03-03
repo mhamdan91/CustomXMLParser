@@ -100,9 +100,10 @@ class XmlParser:
                 raw_header = in_d.get(self.header_key, {}).get(self.table_key)
                 missing_element = self.data_key if len(rows) < len(raw_header) else self.header_key
                 if len(rows) != len(raw_header):
-                    raise MissingItems(f"Header and rows for [{element_name}] do not match. [{missing_element}] is incomplete.")
-                for i, _dict in enumerate(raw_header):
-                    out_d[element_name][_dict.get(self.header_text_key)] = rows[i]
+                    print(f"Header and rows for [{element_name}] do not match. [{missing_element}] is incomplete.", 'red')
+                else:
+                    for i, _dict in enumerate(raw_header):
+                        out_d[element_name][_dict.get(self.header_text_key)] = rows[i]
         else:
             for key, value in in_d.items():  # recurse the dict...
                 if isinstance(value, dict):
