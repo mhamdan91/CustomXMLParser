@@ -1,7 +1,11 @@
 import xmltodict
-import time, json, typing, logging
+import time, json
 from moecolor import print
 from .README import LONG_DESCRIPTION
+from typing import Dict, List, Any
+
+Dict4 = Dict[str, Dict[str, Dict[str, Dict[str, Dict]]]]
+
 
 class ParserError(Exception):
     def __init__(self, error):
@@ -84,20 +88,20 @@ class XmlParser:
     def encoding(self, encoding: str="raw"):
         self._encoding = encoding
 
-    def _load_file(self, file: str, encoding: str='', doc_type='xml') -> typing.Dict:
+    def _load_file(self, file: str, encoding: str='', doc_type='xml') -> Dict:
         encoding = encoding if encoding else self.encoding
         with open(file, encoding=(self.encoding or encoding)) as f:
             return xmltodict.parse(f.read()) if doc_type == 'xml' else json.load(f)
 
-    def _xml_to_dict(self, in_d, out_d={}):
+    def _xml_to_dict(self, in_d: Dict4, out_d: Dict4={}):
         element_name = in_d.get(self.name_key, '')
         if self.data_key in in_d: # This means we're at the bottom...
             out_d[element_name] = {}
              # only if primary keys exist...
             if in_d.get(self.data_key) and in_d.get(self.header_key) and in_d.get(self.header_key, {}).get(self.table_key):
-                rows = [row.split(',') for row in in_d.get(self.data_key).split('\n')]
+                rows = [row.split(',') for row in in_d.get(self.data_key, '').split('\n')]
                 rows = list(zip(*rows))
-                raw_header = in_d.get(self.header_key, {}).get(self.table_key)
+                raw_header: List[Dict] = in_d.get(self.header_key, {}).get(self.table_key, [])
                 missing_element = self.data_key if len(rows) < len(raw_header) else self.header_key
                 if len(rows) != len(raw_header):
                     print(f"Header and rows for [{element_name}] do not match. [{missing_element}] is incomplete.", 'red')
@@ -123,9 +127,9 @@ class XmlParser:
                     out_d[value] = {}
         return out_d
 
-    def _format_dict(self, payload: typing.Dict) -> typing.Dict:
+    def _format_dict(self, payload: Dict) -> Dict:
 
-        def format_key(keys, wild_card=False, payload={}):
+        def format_key(keys: List[str], wild_card=False, payload:Dict={}):
             tmp = payload.copy()
             formatted_key, root_key = '', ''
             wild_list = False
@@ -134,7 +138,7 @@ class XmlParser:
                     if "*" in k:
                         wild_key = k.strip('*')
                         try:
-                            wild_dict = eval(f'tmp["{wild_key}"]') # need to consider all..
+                            wild_dict: Dict = eval(f'tmp["{wild_key}"]') # need to consider all..
                         except Exception:
                             break # this means resource is not available...
                         for _key, _value in wild_dict.items():
@@ -158,7 +162,7 @@ class XmlParser:
                     formatted_key += f'["{k}"]'
             return formatted_key, root_key, tmp
 
-        def summarize(config, parents, payload, out_d={}):
+        def summarize(config: Dict[str, List[str]], parents: Dict, payload: Dict4, out_d: Dict4={}):
             for key, value in config.items():
                 if key not in parents:
                     continue
@@ -199,7 +203,7 @@ class XmlParser:
 
         return summarize(self._config, self._config.get('TREE'), payload)
 
-    def parse(self, file: str) -> typing.Dict:
+    def parse(self, file: str) -> Dict:
         parsed_content = {}
         st = time.perf_counter()
         if self.parser_type == 'raw':
