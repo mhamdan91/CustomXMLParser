@@ -88,7 +88,7 @@ class XmlParser:
     def encoding(self, encoding: str="raw"):
         self._encoding = encoding
 
-    def _load_file(self, file: str, encoding: str='', doc_type='xml') -> Dict:
+    def _load_file(self, file: str, encoding: str='', doc_type: str='xml') -> Dict:
         encoding = encoding if encoding else self.encoding
         with open(file, encoding=(self.encoding or encoding)) as f:
             return xmltodict.parse(f.read()) if doc_type == 'xml' else json.load(f)
@@ -127,9 +127,9 @@ class XmlParser:
                     out_d[value] = {}
         return out_d
 
-    def _format_dict(self, payload: Dict) -> Dict:
+    def _format_dict(self, payload: Dict4) -> Dict:
 
-        def format_key(keys: List[str], wild_card=False, payload:Dict={}):
+        def format_key(keys: List[str], wild_card: bool=False, payload:Dict4={}):
             tmp = payload.copy()
             formatted_key, root_key = '', ''
             wild_list = False
