@@ -31,7 +31,7 @@ class XmlParser:
     """
     def __init__(self, config_file: str="", parser_type: str="raw", encoding: str="utf-8",
                 name_key: str="@name", table_key: str="th", header_key: str='header',
-                data_key: str="rows", header_text_key: str="#text") -> None:
+                data_key: str="rows", header_text_key: str="#text", verbose: bool=True) -> None:
         """
             Constructs all the necessary attributes for the XmlParser object.
         Args:
@@ -59,6 +59,7 @@ class XmlParser:
         self.header_key = header_key
         self.data_key   = data_key
         self.header_text_key = header_text_key
+        self.verbose = verbose
 
     def __repr__(self) -> str:
         return f'\n{self.__class__.__name__}(config_file={self._config_file!r}, parser_type={self._parser_type!r}, encoding={self._encoding!r}, '   \
@@ -104,7 +105,8 @@ class XmlParser:
                 raw_header: List[Dict] = in_d.get(self.header_key, {}).get(self.table_key, [])
                 missing_element = self.data_key if len(rows) < len(raw_header) else self.header_key
                 if len(rows) != len(raw_header):
-                    print(f"Header and rows for [{element_name}] do not match. [{missing_element}] is incomplete.", 'red')
+                    if self.verbose:
+                        print(f"Header and rows for [{element_name}] do not match. [{missing_element}] is incomplete.", 'red')
                 else:
                     for i, _dict in enumerate(raw_header):
                         out_d[element_name][_dict.get(self.header_text_key)] = rows[i]
@@ -123,7 +125,7 @@ class XmlParser:
                         out_d[next(iter(out_d))].update(dict_list)
                     else:
                         out_d.update(dict_list)
-                else:
+                elif value:
                     out_d[value] = {}
         return out_d
 
@@ -173,7 +175,8 @@ class XmlParser:
                         keys = path.split(',')
                         formatted_key, root_key, tmp_payLoad = format_key(keys, True, payload)
                         if not formatted_key and not root_key:
-                            print(f"Key [{key}] resource {value} is not available.", 'orange')
+                            if self.verbose:
+                                print(f"Key [{key}] resource {value} is not available.", 'orange')
                             continue # this means resource is not avaiable
                         if tmp_payLoad.get(root_key):
                             try:
@@ -187,7 +190,8 @@ class XmlParser:
                                 try:
                                     out_d[key][k].update(eval(f'v["{root_key}"]{formatted_key}'))
                                 except KeyError:
-                                    print(f"Resource {formatted_key} is not available.", 'orange')
+                                    if self.verbose:
+                                        print(f"Resource {formatted_key} is not available.", 'orange')
                                     pass # it means resource is not available...
                                 if _children:
                                     for child in _children:
@@ -208,19 +212,24 @@ class XmlParser:
         st = time.perf_counter()
         if self.parser_type == 'raw':
             parsed_content = self._load_file(file)
-            print(f'Raw xml2dict parsing.', 'green')
+            if self.verbose:
+                print(f'Raw xml2dict parsing.', 'green')
         else:
-            unformatted_dict = self._xml_to_dict(self._load_file(file))
+            unformatted_dict = self._xml_to_dict(self._load_file(file), {})
             if not self.config_file:
                 parsed_content =  unformatted_dict
-                print(f'Unformatted custom parsing.', 'green')
+                if self.verbose:
+                    print(f'Unformatted custom parsing.', 'green')
             else:
                 if not self._config:
                     self._config = self._load_file(self.config_file, 'utf-8', 'json')
                 parsed_content = self._format_dict(unformatted_dict[next(iter(unformatted_dict))])
-                print(f'Formatted custom parsing.', 'green')
-            [print(f'"{key}" table is empty.', 'orange') for key, value in parsed_content.items() if not value]
-        print(f'Parsing time: {time.perf_counter() - st:0.2f}s', 'green', attr=['b'])
+                if self.verbose:
+                    print(f'Formatted custom parsing.', 'green')
+            if self.verbose:
+                [print(f'"{key}" table is empty.', 'orange') for key, value in parsed_content.items() if not value]
+        if self.verbose:
+            print(f'Parsing time: {time.perf_counter() - st:0.2f}s', 'green', attr=['b'])
         return parsed_content
 
 XmlParser.__doc__ = LONG_DESCRIPTION
