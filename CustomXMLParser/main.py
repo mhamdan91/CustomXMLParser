@@ -106,7 +106,7 @@ class XmlParser:
                 missing_element = self.data_key if len(rows) < len(raw_header) else self.header_key
                 if len(rows) != len(raw_header):
                     if self.verbose:
-                        print(f"Header and rows for [{element_name}] do not match. [{missing_element}] is incomplete.", 'red')
+                        print(f"Header and rows for [{element_name}] do not match. [{missing_element}] is incomplete.", color='red')
                 else:
                     for i, _dict in enumerate(raw_header):
                         out_d[element_name][_dict.get(self.header_text_key)] = rows[i]
@@ -176,7 +176,7 @@ class XmlParser:
                         formatted_key, root_key, tmp_payLoad = format_key(keys, True, payload)
                         if not formatted_key and not root_key:
                             if self.verbose:
-                                print(f"Key [{key}] resource {value} is not available.", 'orange')
+                                print(f"Key [{key}] resource {value} is not available.", color='orange')
                             continue # this means resource is not avaiable
                         if tmp_payLoad.get(root_key):
                             try:
@@ -191,7 +191,7 @@ class XmlParser:
                                     out_d[key][k].update(eval(f'v["{root_key}"]{formatted_key}'))
                                 except KeyError:
                                     if self.verbose:
-                                        print(f"Resource {formatted_key} is not available.", 'orange')
+                                        print(f"Resource {formatted_key} is not available.", color='orange')
                                     pass # it means resource is not available...
                                 if _children:
                                     for child in _children:
@@ -213,23 +213,23 @@ class XmlParser:
         if self.parser_type == 'raw':
             parsed_content = self._load_file(file)
             if self.verbose:
-                print(f'Raw xml2dict parsing.', 'green')
+                print(f'Raw xml2dict parsing.', color='green')
         else:
             unformatted_dict = self._xml_to_dict(self._load_file(file), {})
             if not self.config_file:
                 parsed_content =  unformatted_dict
                 if self.verbose:
-                    print(f'Unformatted custom parsing.', 'green')
+                    print(f'Unformatted custom parsing.', color='green')
             else:
                 if not self._config:
                     self._config = self._load_file(self.config_file, 'utf-8', 'json')
                 parsed_content = self._format_dict(unformatted_dict[next(iter(unformatted_dict))])
                 if self.verbose:
-                    print(f'Formatted custom parsing.', 'green')
+                    print(f'Formatted custom parsing.', color='green')
             if self.verbose:
-                [print(f'"{key}" table is empty.', 'orange') for key, value in parsed_content.items() if not value]
+                [print(f'"{key}" table is empty.', color='orange') for key, value in parsed_content.items() if not value]
         if self.verbose:
-            print(f'Parsing time: {time.perf_counter() - st:0.2f}s', 'green', attr=['b'])
+            print(f'Parsing time: {time.perf_counter() - st:0.2f}s', color='green', attr=['b'])
         return parsed_content
 
 XmlParser.__doc__ = LONG_DESCRIPTION
