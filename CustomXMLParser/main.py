@@ -215,9 +215,13 @@ class XmlParser:
             if self.verbose:
                 print(f'Raw xml2dict parsing.', color='green')
         else:
-            unformatted_dict = self._xml_to_dict(self._load_file(file), {})
+            try:
+                unformatted_dict = self._xml_to_dict(self._load_file(file), {})
+            except Exception as e:
+                print(f"corrupt file: {file}", color='red')
+                return parsed_content
             if not self.config_file:
-                parsed_content =  unformatted_dict
+                parsed_content = unformatted_dict
                 if self.verbose:
                     print(f'Unformatted custom parsing.', color='green')
             else:

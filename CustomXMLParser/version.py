@@ -1,4 +1,4 @@
-__version__ = "1.0.6"
+__version__ = "1.0.7"
 __author__ = "Muhammad Hamdan <mhamdan.dev@gmail.com>"
 __copyright__ = """
 BSD 3-Clause License
