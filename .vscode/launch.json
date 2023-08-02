@@ -22,6 +22,14 @@
             "console": "integratedTerminal",
             "justMyCode": false,
 
+        },
+        {
+            "name": "Unittest",
+            "type": "python",
+            "request": "launch",
+            "program": "unittest/unittest.py",
+            "console": "integratedTerminal",
+            "justMyCode": true
         }
     ]
 }
