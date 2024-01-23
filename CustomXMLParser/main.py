@@ -248,7 +248,7 @@ class XmlParser:
                header: str="<?xml version='1.0' encoding='utf-8'?>"):
         xml_tree = ET.Element(root)
         self._dict_to_xml(xml_tree, data)
-        tmp: bytes = ET.tostring(root, encoding='utf-8')
+        tmp: bytes = ET.tostring(xml_tree, encoding='utf-8')
         output = header + tmp.decode('utf-8')
         if pretty:
             output = self._prettify_xml(output)
@@ -294,9 +294,8 @@ class XmlParser:
 
         if kwargs.get('dumps'):
             return output
-
         with open(file, 'w') as of:
-            of.write(data)
+            of.write(output)
 
     def dumps(self, file: str, data: Dict, cdata: bool=True, pretty: bool=True, input_format: str='raw', root: str='') -> None:
         return self.dump(file, data, cdata, pretty, input_format, root, dumps=True)
