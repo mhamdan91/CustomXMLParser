@@ -3,6 +3,8 @@ import time, json
 from moecolor import print
 from .README import LONG_DESCRIPTION
 from typing import Dict, List, Any
+import xml.dom.minidom
+import xml.etree.ElementTree as ET
 
 Dict4 = Dict[str, Dict[str, Dict[str, Dict[str, Dict]]]]
 
@@ -93,6 +95,36 @@ class XmlParser:
         encoding = encoding if encoding else self.encoding
         with open(file, encoding=(self.encoding or encoding)) as f:
             return xmltodict.parse(f.read()) if doc_type == 'xml' else json.load(f)
+
+    def _dict_to_xml(self, element: List, data: Dict):
+        for key, value in data.items():
+            if isinstance(value, dict):
+                sub_element = ET.Element(key)
+                element.append(sub_element)
+                self._dict_to_xml(sub_element, value)
+            elif isinstance(value, list):
+                list_element = ET.Element(key)
+                element.append(list_element)
+                self._list_to_xml(list_element, value)
+            else:
+                child = ET.Element(key)
+                child.text = str(value)
+                element.append(child)
+
+    def _list_to_xml(self, element: List, data_list):
+        for item in data_list:
+            if isinstance(item, dict):
+                dict_element = ET.Element('item')
+                element.append(dict_element)
+                self._dict_to_xml(dict_element, item)
+            elif isinstance(item, list):
+                list_element = ET.Element('item')
+                element.append(list_element)
+                self._list_to_xml(list_element, item)
+            else:
+                child = ET.Element('item')
+                child.text = str(item)
+                element.append(child)
 
     def _xml_to_dict(self, in_d: Dict4, out_d: Dict4={}):
         element_name = in_d.get(self.name_key, '')
@@ -207,6 +239,21 @@ class XmlParser:
 
         return summarize(self._config, self._config.get('TREE'), payload)
 
+    def _prettify_xml(self, xml_string: str):
+        dom = xml.dom.minidom.parseString(xml_string)
+        pretty_xml = dom.toprettyxml(indent="    ")
+        return pretty_xml
+
+    def dict_to_xml(self, data: Dict, pretty: bool=False, root: str='root',
+               header: str="<?xml version='1.0' encoding='utf-8'?>"):
+        xml_tree = ET.Element(root)
+        self._dict_to_xml(xml_tree, data)
+        tmp: bytes = ET.tostring(root, encoding='utf-8')
+        output = header + tmp.decode('utf-8')
+        if pretty:
+            output = self._prettify_xml(output)
+        return output
+
     def parse(self, file: str) -> Dict:
         parsed_content = {}
         st = time.perf_counter()
@@ -235,5 +282,25 @@ class XmlParser:
         if self.verbose:
             print(f'Parsing time: {time.perf_counter() - st:0.2f}s', color='green', attr=['b'])
         return parsed_content
+
+    def dump(self, file: str, data: Dict, cdata: bool=True, pretty: bool=True, input_format: str='raw',
+             root: str='root', header: str="<?xml version='1.0' encoding='utf-8'?>", **kwargs) -> None:
+        if input_format == 'raw':
+            output = xmltodict.unparse(data, pretty=pretty)
+            if cdata:
+                output = output.replace('<rows>', '<rows><![CDATA[').replace('</rows>', ']]></rows>')
+        else:
+            output = self.dict_to_xml(data, pretty, root, header)
+
+        if kwargs.get('dumps'):
+            return output
+
+        with open(file, 'w') as of:
+            of.write(data)
+
+    def dumps(self, file: str, data: Dict, cdata: bool=True, pretty: bool=True, input_format: str='raw', root: str='') -> None:
+        return self.dump(file, data, cdata, pretty, input_format, root, dumps=True)
+
+
 
 XmlParser.__doc__ = LONG_DESCRIPTION
