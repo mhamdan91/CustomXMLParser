@@ -4,7 +4,7 @@ import xmltodict
 import xml.dom.minidom
 import xml.etree.ElementTree as ET
 from copy import deepcopy
-from typing import Dict, List, Any, Tuple, Union
+from typing import Dict, List, Tuple, Union
 from moecolor import print
 
 from .version import LONG_DESCRIPTION

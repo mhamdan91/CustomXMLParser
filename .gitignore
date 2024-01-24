@@ -1,6 +1,6 @@
 dist/
 build/
-CustomXMLParser.egg-info
+*.egg-info
 test_data/*
 __pycache__/
 unittest/test_data
