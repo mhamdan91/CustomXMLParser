@@ -1,10 +1,13 @@
+import time
+import json
 import xmltodict
-import time, json
-from moecolor import print
-from .README import LONG_DESCRIPTION
-from typing import Dict, List, Any
 import xml.dom.minidom
 import xml.etree.ElementTree as ET
+from copy import deepcopy
+from typing import Dict, List, Any, Tuple, Union
+from moecolor import print
+
+from .README import LONG_DESCRIPTION
 
 Dict4 = Dict[str, Dict[str, Dict[str, Dict[str, Dict]]]]
 
@@ -31,8 +34,8 @@ class XmlParser:
     -------
     parse(file=str): Parses an input xml file and converts it into a dictionary
     """
-    def __init__(self, config_file: str="", parser_type: str="raw", encoding: str="utf-8",
-                name_key: str="@name", table_key: str="th", header_key: str='header',
+    def __init__(self, config_file: str="", parser_type: str="raw", tree_idn: str='TREE', keys_idn: str='KEYS',
+                encoding: str="utf-8", name_key: str="@name", table_key: str="th", header_key: str='header',
                 data_key: str="rows", header_text_key: str="#text", verbose: bool=True) -> None:
         """
             Constructs all the necessary attributes for the XmlParser object.
@@ -40,6 +43,8 @@ class XmlParser:
             config_file (str, optional): configuration file for custom formatting. Defaults to "". If not specified, the parser
             will return a json dictionary without custom formatting.
             parser_type (str, optional): type of parsing (custom: for xml to json using custom config, raw: for xml to json). Defaults to "raw".
+            tree_idn (str, optional): Key identifier of the tree configuration dictionary in config file. Defaults to "TREE".
+            keys_idn (str, optional): Key identifier of the requested keys per dictionary configuration in config file. Defaults to "KEYS".
             encoding (str, optional): character encoding of xml file . Defaults to "utf-8".
             name_key (str, optional): this is a custom/xml configuration parameter, and it is the name of primary tag. Defaults to "@name".
             table_key (str, optional): this is a custom/xml configuration parameter, and it is the table identifier. Defaults to "th".
@@ -51,15 +56,21 @@ class XmlParser:
         """
         if parser_type not in ["raw", "custom"]:
             raise ValueError(f"[ERROR] received invalid parser_type [{parser_type}]. Valid options [raw, custom].")
-        self._parser_type = parser_type
-        self._config_file = config_file
-        self._encoding    = encoding
-        self._config = self._load_file(self._config_file, 'utf-8', 'json') if self._config_file else {}
+
+        self._parser_type: str = parser_type
+        self._config_file: str = config_file
+        self._encoding: str = encoding
+        self._tree_idn: str = tree_idn
+        self._keys_idn: str = keys_idn
+        self._tree_config: Dict4 = {}
+        self._raw_tree_config: Dict4 = {}
+        self._target_keys_dict: Dict[str, str] = {}
+        self._config: Dict = self.load_file(config_file, 'utf-8', 'json') if config_file else {}
         # custom keys configuration, can be set only once per instance - no setter or getter...
-        self.name_key   = name_key
-        self.table_key  = table_key
+        self.name_key = name_key
+        self.table_key = table_key
         self.header_key = header_key
-        self.data_key   = data_key
+        self.data_key = data_key
         self.header_text_key = header_text_key
         self.verbose = verbose
 
@@ -91,197 +102,216 @@ class XmlParser:
     def encoding(self, encoding: str="raw"):
         self._encoding = encoding
 
-    def _load_file(self, file: str, encoding: str='', doc_type: str='xml') -> Dict:
-        encoding = encoding if encoding else self.encoding
-        with open(file, encoding=(self.encoding or encoding)) as f:
-            return xmltodict.parse(f.read()) if doc_type == 'xml' else json.load(f)
+    def load_file(self, file: str, encoding: str='', doc_type: str='xml') -> Dict:
+        try:
+            encoding = encoding or self.encoding
+            with open(file, encoding=encoding) as f:
+                return xmltodict.parse(f.read()) if doc_type == 'xml' else json.load(f)
+        except Exception as e:
+            print(f"Failed to load file `{e}`", color='red')
+            return {}
 
-    def _dict_to_xml(self, element: List, data: Dict):
-        for key, value in data.items():
-            if isinstance(value, dict):
-                sub_element = ET.Element(key)
-                element.append(sub_element)
-                self._dict_to_xml(sub_element, value)
-            elif isinstance(value, list):
-                list_element = ET.Element(key)
-                element.append(list_element)
-                self._list_to_xml(list_element, value)
-            else:
-                child = ET.Element(key)
-                child.text = str(value)
-                element.append(child)
-
-    def _list_to_xml(self, element: List, data_list):
-        for item in data_list:
-            if isinstance(item, dict):
-                dict_element = ET.Element('item')
-                element.append(dict_element)
-                self._dict_to_xml(dict_element, item)
-            elif isinstance(item, list):
-                list_element = ET.Element('item')
-                element.append(list_element)
-                self._list_to_xml(list_element, item)
-            else:
-                child = ET.Element('item')
-                child.text = str(item)
-                element.append(child)
-
-    def _xml_to_dict(self, in_d: Dict4, out_d: Dict4={}):
-        element_name = in_d.get(self.name_key, '')
-        if self.data_key in in_d: # This means we're at the bottom...
+    def xml_to_dict(self, in_d: Dict4, out_d: Dict4={}):
+        if self.data_key in in_d:  # This means we're at the bottom...
+            element_name = in_d[self.name_key]
             out_d[element_name] = {}
-             # only if primary keys exist...
-            if in_d.get(self.data_key) and in_d.get(self.header_key) and in_d.get(self.header_key, {}).get(self.table_key):
-                rows = [row.split(',') for row in in_d.get(self.data_key, '').split('\n')]
-                rows = list(zip(*rows))
-                raw_header: List[Dict] = in_d.get(self.header_key, {}).get(self.table_key, [])
-                missing_element = self.data_key if len(rows) < len(raw_header) else self.header_key
-                if len(rows) != len(raw_header):
-                    if self.verbose:
-                        print(f"Header and rows for [{element_name}] do not match. [{missing_element}] is incomplete.", color='red')
-                else:
+            raw_header: List[Dict] = in_d.get(self.header_key, {}).get(self.table_key, [])
+            if in_d.get(self.data_key) and raw_header:
+                rows = list(zip(*[row.split(',') for row in in_d.get(self.data_key, '').split('\n')]))
+                if len(rows) == len(raw_header):
                     for i, _dict in enumerate(raw_header):
                         out_d[element_name][_dict.get(self.header_text_key)] = rows[i]
-        else:
-            for key, value in in_d.items():  # recurse the dict...
-                if isinstance(value, dict):
-                    if self.name_key in in_d:
-                        out_d[next(iter(out_d))].update({key: self._xml_to_dict(value, {})})
-                    else:
-                        out_d[key] = self._xml_to_dict(value, {})
-                elif isinstance(value, list):
-                    dict_list = {key: {}}
-                    for v in value:
-                        dict_list[key].update(self._xml_to_dict(v, {}))  # v is assumed a dictionary...
-                    if out_d: # This if element has a name..
-                        out_d[next(iter(out_d))].update(dict_list)
-                    else:
-                        out_d.update(dict_list)
-                elif value:
-                    out_d[value] = {}
+                elif self.verbose:
+                    missing_element = self.data_key if len(rows) < len(raw_header) else self.header_key
+                    print(f"Header and rows for [{element_name}] do not match. " \
+                            f"[{missing_element}] is incomplete.", color='red')
+                return out_d
+        for key, value in in_d.items():  # recurse the dict...
+            if isinstance(value, dict):
+                sub_dict = self.xml_to_dict(value, {})
+                if self.name_key in in_d:
+                    out_d[next(iter(out_d))].update({key: sub_dict})
+                else:
+                    out_d[key] = sub_dict
+            elif isinstance(value, list):
+                dict_list = {key: {}}
+                for v in value:
+                    dict_list[key].update(self.xml_to_dict(v, {}))  # v is assumed a dictionary...
+                if out_d:
+                    out_d[next(iter(out_d))].update(dict_list)
+                else:
+                    out_d.update(dict_list)
+            elif value:
+                out_d[value] = {}
+
         return out_d
 
-    def _format_dict(self, payload: Dict4) -> Dict:
+    def dict_to_xml(self, data: Dict, pretty: bool=False, root: str='root',
+                header: str="<?xml version='1.0' encoding='utf-8'?>"):
 
-        def format_key(keys: List[str], wild_card: bool=False, payload:Dict4={}):
-            tmp = payload.copy()
-            formatted_key, root_key = '', ''
-            wild_list = False
-            if wild_card:
-                for k in keys:
-                    if "*" in k:
-                        wild_key = k.strip('*')
-                        try:
-                            wild_dict: Dict = eval(f'tmp["{wild_key}"]') # need to consider all..
-                        except Exception:
-                            break # this means resource is not available...
-                        for _key, _value in wild_dict.items():
-                            if len(wild_dict) == 1:
-                                tmp = _value  # if not a list, then return actual item...
-                            else:
-                                tmp = wild_dict
-                                wild_list = True
-                                break
+            def _dict_to_xml(element: List, data: Dict):
+                for key, value in data.items():
+                    item_element = ET.Element(key)
+                    element.append(item_element)
+                    if isinstance(value, dict):
+                        _dict_to_xml(item_element, value)
+                    elif isinstance(value, list):
+                        _list_to_xml(item_element, value)
                     else:
-                        if not root_key:
-                            root_key = k
-                            if wild_list: # skip initial key if it's a wild list, since we'll use original list instead of the parent key...
-                                wild_list = False
-                                continue
-                        formatted_key += f'["{k}"]'
-            else:
-                for k in keys:
-                    if not root_key:
-                        root_key = k
-                    formatted_key += f'["{k}"]'
-            return formatted_key, root_key, tmp
+                        item_element.text = str(value)
 
-        def summarize(config: Dict[str, List[str]], parents: Dict, payload: Dict4, out_d: Dict4={}):
+            def _list_to_xml(element: List, data_list: Union[dict, list]):
+                for item in data_list:
+                    item_element = ET.Element('item')
+                    element.append(item_element)
+                    if isinstance(item, (dict, list)):
+                        _dict_to_xml(item_element, item)
+                    else:
+                        item_element.text = str(item)
+
+            def _prettify_xml(xml_string: str) -> str:
+                dom = xml.dom.minidom.parseString(xml_string)
+                pretty_xml = dom.toprettyxml(indent="    ")
+                return pretty_xml
+
+            xml_tree = ET.Element(root)
+            _dict_to_xml(xml_tree, data)
+            tmp: bytes = ET.tostring(xml_tree, encoding='utf-8')
+            output = header + tmp.decode('utf-8')
+            return _prettify_xml(output) if pretty else output
+
+    def format_dict(self, payload: Dict4) -> Dict:
+
+        def _process_payload(raw_keys: List[str], payload: Dict4={}) -> Tuple[str, List, Dict]:
+            wild_list = False
+            wild_dict: Dict = {}
+            valid_keys, root_key = [], ''
+            payload_copy = deepcopy(payload)
+            for key in raw_keys:
+                if "*" in key:
+                    wild_key = key.strip('*')
+                    wild_dict = payload_copy.get(wild_key, {})  # need to consider all..
+                    if not wild_dict:
+                        break  # this means resource is not available...
+                    elif len(wild_dict) == 1:
+                        # return actual item if not a list...
+                        payload_copy = list(wild_dict.values()).pop()
+                    else:
+                        payload_copy = wild_dict
+                        wild_list = True
+                else:
+                    root_key = root_key or key
+                    # skip initial key if it's a wild list,
+                    if not wild_list:
+                        valid_keys.append(key)
+                    else:
+                        wild_list = False
+            return (root_key, valid_keys, payload_copy)
+
+        def _get_dict_values(d: Dict4, keys: List) -> Dict:
+            for key in keys:
+                d = d[key]
+            return d
+
+        def _populate_dict(key: str, valid_keys: List, sub_payload: Dict4, print_err: bool=False):
+            tmp_dict: Dict = {}
+            try:
+                tmp_dict = _get_dict_values(sub_payload, valid_keys)
+                if key in self._target_keys_dict:
+                    sub_keys = self._target_keys_dict.get(key, '').split(',')
+                    tmp_dict = {k:v for k, v in tmp_dict.items() if k in sub_keys}
+            except KeyError:
+                # this means resource is not available...
+                if print_err or self.verbose:
+                    print(f"Resource `{','.join(valid_keys)}` is not available.", color='orange')
+            return tmp_dict
+
+        def _summarize(config: Dict[str, List[str]], parents: Dict, payload: Dict4, out_d: Dict4={}):
             for key, value in config.items():
                 if key not in parents:
                     continue
                 out_d[key] = {}
-                _children = parents.get(key, {})
+                children: Dict4 = parents.get(key, {})
                 for path in value:
+                    raw_keys = path.split(',')
                     if "*" in path: # Do wild-card (list) lookup...
-                        keys = path.split(',')
-                        formatted_key, root_key, tmp_payLoad = format_key(keys, True, payload)
-                        if not formatted_key and not root_key:
+                        root_key, valid_keys, sub_payload = _process_payload(raw_keys, payload)
+                        if not (valid_keys or root_key):
                             if self.verbose:
                                 print(f"Key [{key}] resource {value} is not available.", color='orange')
                             continue # this means resource is not avaiable
-                        if tmp_payLoad.get(root_key):
-                            try:
-                                out_d[key] = eval(f'tmp_payLoad{formatted_key}')
-                            except KeyError:
-                                pass # this means resource is not available...
+                        if sub_payload.get(root_key):
+                            out_d[key].update(_populate_dict(key, valid_keys, sub_payload))
                         else:
                             # This means it's wild card list...
-                            for k, v in tmp_payLoad.items():
+                            valid_keys.insert(0, root_key)
+                            for k, v in sub_payload.items():
                                 out_d[key][k] = {}
-                                try:
-                                    out_d[key][k].update(eval(f'v["{root_key}"]{formatted_key}'))
-                                except KeyError:
-                                    if self.verbose:
-                                        print(f"Resource {formatted_key} is not available.", color='orange')
-                                    pass # it means resource is not available...
-                                if _children:
-                                    for child in _children:
-                                        out_d[key][k].update(summarize({child: config.get(child, [])}, _children, v, {}))
+                                out_d[key][k].update(_populate_dict(key, valid_keys, v, True))
+                                for child in children:
+                                    out_d[key][k].update(_summarize({child: config.get(child, [])}, children, v, {}))
                     else:
-                        # Do direct lookup...
-                        keys = path.split(',')
-                        try:
-                            out_d[key].update(eval(f'payload{format_key(keys)[0]}'))
-                        except KeyError:
-                            pass # It means resource is not available...
+                        # No wild card, do direct lookup...
+                        valid_keys = raw_keys
+                        out_d[key].update(_populate_dict(key, valid_keys, payload))
+
             return out_d
 
-        return summarize(self._config, self._config.get('TREE'), payload)
+        return _summarize(self._config, self._tree_config, payload)
 
-    def _prettify_xml(self, xml_string: str):
-        dom = xml.dom.minidom.parseString(xml_string)
-        pretty_xml = dom.toprettyxml(indent="    ")
-        return pretty_xml
+    def process_config(self):
 
-    def dict_to_xml(self, data: Dict, pretty: bool=False, root: str='root',
-               header: str="<?xml version='1.0' encoding='utf-8'?>"):
-        xml_tree = ET.Element(root)
-        self._dict_to_xml(xml_tree, data)
-        tmp: bytes = ET.tostring(xml_tree, encoding='utf-8')
-        output = header + tmp.decode('utf-8')
-        if pretty:
-            output = self._prettify_xml(output)
-        return output
+        def _set_target_keys(d: Dict[str, Dict]) -> None:
+            for k, v in d.items():
+                if isinstance(v, dict) and v.get(self._keys_idn, ''):
+                    self._target_keys_dict[k] = v[self._keys_idn]
+                    _set_target_keys(v)
+
+        def _prune_tree(d) -> Dict:
+            if isinstance(d, dict):
+                return {key: _prune_tree(value) for key, value in d.items() if key != self._keys_idn}
+            elif isinstance(d, list):
+                return [_prune_tree(item) for item in d]
+            else:
+                return d
+
+        if not self._config:
+            self._config = self.load_file(self.config_file, 'utf-8', 'json')
+
+        self._raw_tree_config = self._config.get(self._tree_idn, {})
+        self._tree_config = _prune_tree(self._raw_tree_config)
+        _set_target_keys(self._raw_tree_config)
 
     def parse(self, file: str) -> Dict:
-        parsed_content = {}
         st = time.perf_counter()
+        self.process_config()
         if self.parser_type == 'raw':
-            parsed_content = self._load_file(file)
             if self.verbose:
-                print(f'Raw xml2dict parsing.', color='green')
-        else:
-            try:
-                unformatted_dict = self._xml_to_dict(self._load_file(file), {})
-            except Exception as e:
-                print(f"corrupt file: {file}", color='red')
-                return parsed_content
-            if not self.config_file:
-                parsed_content = unformatted_dict
-                if self.verbose:
-                    print(f'Unformatted custom parsing.', color='green')
-            else:
-                if not self._config:
-                    self._config = self._load_file(self.config_file, 'utf-8', 'json')
-                parsed_content = self._format_dict(unformatted_dict[next(iter(unformatted_dict))])
-                if self.verbose:
-                    print(f'Formatted custom parsing.', color='green')
+                print(f'Raw xml to dict parsing.', color='yellow')
+            return self.load_file(file)
+
+        try:
+            unformatted_dict = self.xml_to_dict(self.load_file(file), {})
             if self.verbose:
-                [print(f'"{key}" table is empty.', color='orange') for key, value in parsed_content.items() if not value]
+                print(f'Unformatted custom parsing.', color='yellow')
+            if not self._tree_config:
+                return unformatted_dict
+        except Exception:
+            print(f"Corrupt file: {file}", color='red')
+            return {}
+
+        try:
+            formatted_dict = self.format_dict(unformatted_dict[next(iter(unformatted_dict))])
+        except Exception:
+            print(f"Bad configuration, defaulting to unformatted parsing.", color='red')
+            return unformatted_dict
+
         if self.verbose:
+            print(f'Formatted custom parsing.', color='yellow')
+            [print(f'"{key}" table is empty.', color='orange') for key, value in formatted_dict.items() if not value]
             print(f'Parsing time: {time.perf_counter() - st:0.2f}s', color='green', attr=['b'])
-        return parsed_content
+
+        return formatted_dict
 
     def dump(self, file: str, data: Dict, cdata: bool=True, pretty: bool=True, input_format: str='raw',
              root: str='root', header: str="<?xml version='1.0' encoding='utf-8'?>", **kwargs) -> None:
@@ -294,12 +324,12 @@ class XmlParser:
 
         if kwargs.get('dumps'):
             return output
+
         with open(file, 'w') as of:
             of.write(output)
 
     def dumps(self, file: str, data: Dict, cdata: bool=True, pretty: bool=True, input_format: str='raw', root: str='') -> None:
         return self.dump(file, data, cdata, pretty, input_format, root, dumps=True)
-
 
 
 XmlParser.__doc__ = LONG_DESCRIPTION

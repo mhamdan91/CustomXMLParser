@@ -3,5 +3,5 @@ build/
 CustomXMLParser.egg-info
 test_data/*
 __pycache__/
-unittest
+unittest/test_data
 venv*
