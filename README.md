@@ -36,6 +36,19 @@ xml_file = 'path_to_xml_file'
 xml_dict = xml_parser.parse(xml_file)
 ```
 
+If you wish to dump a dict to XML file or a string, then do the following:
+```python
+from CustomXMLParser import XmlParser
+xml_parser = XmlParser(parser_type='raw')
+xml_file = 'path_to_xml_file'
+xml_dict = xml_parser.parse(xml_file)
+my_dict = manipulate(xml_dict) # Manipulate raw dict, but MUST maintain structure
+out_xml_file = 'path_to_out_xml_file'
+xml_parser.dump(out_xml_file, my_dict, pretty=True) # This dump dict to xml file
+my_xml_string = xml_parser.dumps(data, pretty=True) # This dumps dict to a string
+```
+
+
 If you wish to read specific portions of the XML file and format them in a particular way, then do the following:
 ```python
 from CustomXMLParser import XmlParser
@@ -45,6 +58,19 @@ xml_parser = XmlParser(config_file=config_file, parser_type='custom')
 xml_file = 'path_to_xml_file'
 xml_dict = xml_parser.parse(xml_file)
 ```
+
+If you wish to dump a any dict to XML file or a string, then do the following:
+```python
+from CustomXMLParser import XmlParser
+xml_parser = XmlParser(parser_type='raw')
+xml_file = 'path_to_xml_file'
+xml_dict = xml_parser.parse(xml_file)
+my_dict = manipulate(xml_dict)... # Manipulate raw dict, but MUST maintain structure
+out_xml_file = 'path_to_out_xml_file'
+xml_parser.dump(my_dict, out_xml_file, input_format='custom', root='root', pretty=True) # This dump dict to xml file
+my_xml_string = xml_parser.dumps(my_dict, input_format='custom', root='root', pretty=True) # This dumps dict to a string
+```
+
 
 Note, the `XmlParser` class uses the following default XML attributes
 
@@ -79,7 +105,7 @@ Below shows an example of configurations for custom parsing of XML.
 {
   "TREE":{
     "TABLE_A": {},
-    "TABLE_B": {"TABLE_C": {}}
+    "TABLE_B": {"TABLE_C": {"KEYS": "key1,key2"}}
   },
 
   "TABLE_A":
@@ -106,6 +132,16 @@ Below shows an example of configurations for custom parsing of XML.
 ### Tree structure
 The structure can be flat or nested. If you wish to return child data for a particular parent, then you have to include the child as value for the parent. For example, parent **TABLE_B** has child **TABLE_C**. If **TABLE_C** has a child of its own, then we add it to **TABLE_C** in the same way.
 
+```yaml
+REQUESTING_SPECIFIC_KEYS:
+  notice that **TABLE_C** specifies a key called `KEYS` and a value of `key1,key2`.
+  This configuration allows you to only return matching keys `key1` and `key2` for *TABLE_C*.
+  If the `KEYS` key is not specified, then all keys are returned by default.
+  The `KEYS` key must be unique and is not present in the XML file. If it is present,
+  then user can change the default key name through class attributes.
+
+```
+
 ### Data structure
 Let's make some assumptions about elements to make this example easy to follow.
 - For **TABLE_A**, assume element0_tag and element1_tag map to `table`, element0_name to `info`, and element1_name to `metadata`.
@@ -118,7 +154,13 @@ For each key, a path or a list of paths (xpath) is/are required to be provided i
 - **TABLE_B** has single path ["container*,node*,table,images"], data under `info` table for all nodes and all containers will be returned and stored in *TABLE_B*.
 - **TABLE_C** has single path ["table,images"], data under `images` table for all parent nodes and containers will be returned and stored in *TABLE_C*. 
 
-*Notice*, full path isn't required for **TABLE_C** and the *GFC* (greatest common factor) between the child **TABLE_C** and the parent **TABLE_B** is only required in the parent table. Since **TABLE_C** is a child of **TABLE_B**, it falls under the same path, but **TABLE_C** breaks away at "table,images" and that's why it is the only specified path. In other words, since **TABLE_C** is a child of **TABLE_B**, all *TABLE_B* rules carry over to *TABLE_C*. 
+```yaml
+NOTICE:
+  full path isn't required for **TABLE_C** and the *GFC* (greatest common factor) between the child **TABLE_C**,
+  and the parent **TABLE_B** is only required in the parent table. Since **TABLE_C** is a child of **TABLE_B**,
+  it falls under the same path, but **TABLE_C** breaks away at "table,images" and that's why it is the only specified path.
+  In other words, since **TABLE_C** is a child of **TABLE_B**, all *TABLE_B* rules carry over to *TABLE_C*. 
+```
 
 ----------------------------------------
-Author: Hamdan, Muhammad (@mhamdan91 - ©)
+Author: Hamdan, Muhammad (@mhamdan - ©)

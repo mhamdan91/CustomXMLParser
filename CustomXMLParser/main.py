@@ -7,7 +7,7 @@ from copy import deepcopy
 from typing import Dict, List, Any, Tuple, Union
 from moecolor import print
 
-from .README import LONG_DESCRIPTION
+from .version import LONG_DESCRIPTION
 
 Dict4 = Dict[str, Dict[str, Dict[str, Dict[str, Dict]]]]
 
@@ -218,7 +218,7 @@ class XmlParser:
             try:
                 tmp_dict = _get_dict_values(sub_payload, valid_keys)
                 if key in self._target_keys_dict:
-                    sub_keys = self._target_keys_dict.get(key, '').split(',')
+                    sub_keys = [key.strip() for key in self._target_keys_dict.get(key, '').split(',')]
                     tmp_dict = {k:v for k, v in tmp_dict.items() if k in sub_keys}
             except KeyError:
                 # this means resource is not available...
@@ -313,7 +313,7 @@ class XmlParser:
 
         return formatted_dict
 
-    def dump(self, file: str, data: Dict, cdata: bool=True, pretty: bool=True, input_format: str='raw',
+    def dump(self, data: Dict, file: str, cdata: bool=True, pretty: bool=True, input_format: str='raw',
              root: str='root', header: str="<?xml version='1.0' encoding='utf-8'?>", **kwargs) -> None:
         if input_format == 'raw':
             output = xmltodict.unparse(data, pretty=pretty)
@@ -328,8 +328,8 @@ class XmlParser:
         with open(file, 'w') as of:
             of.write(output)
 
-    def dumps(self, file: str, data: Dict, cdata: bool=True, pretty: bool=True, input_format: str='raw', root: str='') -> None:
-        return self.dump(file, data, cdata, pretty, input_format, root, dumps=True)
+    def dumps(self, data: Dict, cdata: bool=True, pretty: bool=True, input_format: str='raw', root: str='') -> None:
+        return self.dump(data, '', cdata, pretty, input_format, root, dumps=True)
 
 
 XmlParser.__doc__ = LONG_DESCRIPTION

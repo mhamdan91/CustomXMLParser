@@ -11,8 +11,8 @@ parser = XmlParser(config_file=config_file, parser_type='custom', verbose=False)
 data = parser.parse(tdx_file)
 
 out_tdx = tdx_file.replace('.XML', '_mod.XML')
-
-xmlout = parser.dumps(out_tdx, data, input_format='custom', root='root')
+xmlout = parser.dumps(data, input_format='custom', root='root')
+# xmlout = parser.dump(data, out_tdx, input_format='custom', root='root')
 
 with open(out_tdx, 'w') as of:
     of.write(xmlout)
