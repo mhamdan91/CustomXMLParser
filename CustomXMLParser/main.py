@@ -102,13 +102,18 @@ class XmlParser:
     def encoding(self, encoding: str="raw"):
         self._encoding = encoding
 
+    def _print(self, text: str, color: str, verbose: bool=False):
+        verbose = verbose or self.verbose
+        if verbose:
+            print(text, color=color)
+
     def load_file(self, file: str, encoding: str='', doc_type: str='xml') -> Dict:
         try:
             encoding = encoding or self.encoding
             with open(file, encoding=encoding) as f:
                 return xmltodict.parse(f.read()) if doc_type == 'xml' else json.load(f)
         except Exception as e:
-            print(f"Failed to load file `{e}`", color='red')
+            self._print(f"Failed to load file `{e}`", color='red')
             return {}
 
     def xml_to_dict(self, in_d: Dict4, out_d: Dict4={}):
@@ -121,11 +126,11 @@ class XmlParser:
                 if len(rows) == len(raw_header):
                     for i, _dict in enumerate(raw_header):
                         out_d[element_name][_dict.get(self.header_text_key)] = rows[i]
-                elif self.verbose:
-                    missing_element = self.data_key if len(rows) < len(raw_header) else self.header_key
-                    print(f"Header and rows for [{element_name}] do not match. " \
+                missing_element = self.data_key if len(rows) < len(raw_header) else self.header_key
+                self._print(f"Header and rows for [{element_name}] do not match. " \
                             f"[{missing_element}] is incomplete.", color='red')
                 return out_d
+
         for key, value in in_d.items():  # recurse the dict...
             if isinstance(value, dict):
                 sub_dict = self.xml_to_dict(value, {})
@@ -222,8 +227,7 @@ class XmlParser:
                     tmp_dict = {k:v for k, v in tmp_dict.items() if k in sub_keys}
             except KeyError:
                 # this means resource is not available...
-                if print_err or self.verbose:
-                    print(f"Resource `{','.join(valid_keys)}` is not available.", color='orange')
+                self._print(f"Resource `{','.join(valid_keys)}` is not available.", color='orange')
             return tmp_dict
 
         def _summarize(config: Dict[str, List[str]], parents: Dict, payload: Dict4, out_d: Dict4={}):
@@ -234,12 +238,11 @@ class XmlParser:
                 children: Dict4 = parents.get(key, {})
                 for path in value:
                     raw_keys = path.split(',')
-                    if "*" in path: # Do wild-card (list) lookup...
+                    if "*" in path:  # Do wild-card (list) lookup...
                         root_key, valid_keys, sub_payload = _process_payload(raw_keys, payload)
                         if not (valid_keys or root_key):
-                            if self.verbose:
-                                print(f"Key [{key}] resource {value} is not available.", color='orange')
-                            continue # this means resource is not avaiable
+                            self._print(f"Key [{key}] resource {value} is not available.", color='orange')
+                            continue  # this means resource is not avaiable
                         if sub_payload.get(root_key):
                             out_d[key].update(_populate_dict(key, valid_keys, sub_payload))
                         else:
@@ -286,30 +289,28 @@ class XmlParser:
         st = time.perf_counter()
         self.process_config()
         if self.parser_type == 'raw':
-            if self.verbose:
-                print(f'Raw xml to dict parsing.', color='yellow')
+            self._print(f'Raw xml to dict parsing.', color='yellow')
             return self.load_file(file)
 
         try:
             unformatted_dict = self.xml_to_dict(self.load_file(file), {})
-            if self.verbose:
-                print(f'Unformatted custom parsing.', color='yellow')
+            self._print(f'Unformatted custom parsing.', color='yellow')
             if not self._tree_config:
                 return unformatted_dict
         except Exception:
-            print(f"Corrupt file: {file}", color='red')
+            self._print(f"Corrupt file: {file}", color='red')
             return {}
 
         try:
             formatted_dict = self.format_dict(unformatted_dict[next(iter(unformatted_dict))])
         except Exception:
-            print(f"Bad configuration, defaulting to unformatted parsing.", color='red')
+            self._print(f"Bad configuration, defaulting to unformatted parsing.", color='orange')
             return unformatted_dict
 
-        if self.verbose:
-            print(f'Formatted custom parsing.', color='yellow')
-            [print(f'"{key}" table is empty.', color='orange') for key, value in formatted_dict.items() if not value]
-            print(f'Parsing time: {time.perf_counter() - st:0.2f}s', color='green', attr=['b'])
+
+        self._print(f'Formatted custom parsing.', color='yellow')
+        [self._print(f'"{key}" table is empty.', color='orange') for key, value in formatted_dict.items() if not value]
+        self._print(f'Parsing time: {time.perf_counter() - st:0.2f}s', color='green', attr=['b'])
 
         return formatted_dict
 
