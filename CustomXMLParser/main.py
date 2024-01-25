@@ -102,10 +102,10 @@ class XmlParser:
     def encoding(self, encoding: str="raw"):
         self._encoding = encoding
 
-    def _print(self, text: str, color: str, verbose: bool=False):
+    def _print(self, text: str, color: str, verbose: bool=False, **kwargs):
         verbose = verbose or self.verbose
         if verbose:
-            print(text, color=color)
+            print(text, color=color, **kwargs)
 
     def load_file(self, file: str, encoding: str='', doc_type: str='xml') -> Dict:
         try:
@@ -129,7 +129,7 @@ class XmlParser:
                 missing_element = self.data_key if len(rows) < len(raw_header) else self.header_key
                 self._print(f"Header and rows for [{element_name}] do not match. " \
                             f"[{missing_element}] is incomplete.", color='red')
-                return out_d
+            return out_d
 
         for key, value in in_d.items():  # recurse the dict...
             if isinstance(value, dict):
