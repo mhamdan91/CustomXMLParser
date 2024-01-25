@@ -27,9 +27,9 @@
             "name": "Unittest",
             "type": "python",
             "request": "launch",
-            "program": "unittest/unittest.py",
+            "program": "${workspaceFolder}\\unittest\\unittest.py",
             "console": "integratedTerminal",
-            "justMyCode": true
+            "justMyCode": false
         }
     ]
 }
